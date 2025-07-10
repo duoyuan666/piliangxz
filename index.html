@@ -93,24 +93,11 @@
         .btn-primary {
             background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
-            position: relative;
-            overflow: hidden;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-primary:disabled {
-            background: linear-gradient(45deg, #ffc107, #ff6b6b);
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
         }
 
         .btn-secondary {
@@ -431,41 +418,30 @@
 
                 this.isProcessing = true;
                 this.downloadBtn.disabled = true;
-                this.downloadBtn.textContent = '⚡ 高速处理中...';
+                this.downloadBtn.textContent = '⏳ 处理中...';
                 
                 this.progressSection.classList.remove('hidden');
                 this.stats = { total: urls.length, success: 0, error: 0 };
                 this.updateStats();
                 
-                this.log(`开始高速并发处理 ${urls.length} 个链接`, 'info');
+                this.log(`开始处理 ${urls.length} 个链接`, 'info');
                 
                 const zip = new JSZip();
                 
-                // 并发处理，每批5个链接
-                const batchSize = 5;
-                const batches = [];
-                for (let i = 0; i < urls.length; i += batchSize) {
-                    batches.push(urls.slice(i, i + batchSize));
-                }
-                
-                for (const batch of batches) {
-                    const promises = batch.map(url => this.processUrlFast(url, zip));
-                    await Promise.all(promises);
+                for (let i = 0; i < urls.length; i++) {
+                    const url = urls[i];
+                    await this.processUrl(url, zip);
                 }
                 
                 if (this.stats.success > 0) {
                     if (this.stats.success === 1 && urls.length === 1) {
                         this.log('文件处理完成', 'success');
                     } else {
-                        this.log('正在快速生成压缩包...', 'info');
-                        const content = await zip.generateAsync({ 
-                            type: 'blob',
-                            compression: 'DEFLATE',
-                            compressionOptions: { level: 6 }
-                        });
+                        this.log('正在生成压缩包...', 'info');
+                        const content = await zip.generateAsync({ type: 'blob' });
                         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
                         this.saveFile(content, `媒体文件_${timestamp}.zip`);
-                        this.log(`⚡ 压缩包已生成，包含 ${this.stats.success} 个文件`, 'success');
+                        this.log(`压缩包已生成，包含 ${this.stats.success} 个文件`, 'success');
                     }
                 }
                 
@@ -473,19 +449,19 @@
                 this.downloadBtn.disabled = false;
                 this.downloadBtn.textContent = '🚀 开始处理';
                 
-                this.log(`⚡ 高速处理完成！成功: ${this.stats.success}, 失败: ${this.stats.error}`, 'info');
+                this.log(`处理完成！成功: ${this.stats.success}, 失败: ${this.stats.error}`, 'info');
             }
 
-            async processUrlFast(url, zip) {
+            async processUrl(url, zip) {
                 const filename = this.getFilename(url);
                 
                 try {
-                    // 快速尝试，设置较短的超时时间
-                    let blob = await this.tryDirectDownloadFast(url);
+                    // 方法1: 直接下载
+                    let blob = await this.tryDirectDownload(url);
                     
                     if (!blob) {
-                        // 快速代理下载
-                        blob = await this.tryProxyDownloadFast(url);
+                        // 方法2: 使用代理
+                        blob = await this.tryProxyDownload(url);
                     }
                     
                     if (blob) {
@@ -495,9 +471,9 @@
                             zip.file(filename, blob);
                         }
                         this.stats.success++;
-                        this.log(`⚡ ${filename} 高速下载成功`, 'success');
+                        this.log(`✅ ${filename} 下载成功`, 'success');
                     } else {
-                        // 生成下载链接
+                        // 方法3: 生成下载链接
                         this.createDownloadLink(url, filename);
                         this.stats.success++;
                         this.log(`📋 ${filename} 已生成下载链接`, 'warning');
@@ -510,84 +486,52 @@
                 }
             }
 
-            async tryDirectDownloadFast(url) {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
-                
+            async tryDirectDownload(url) {
                 try {
                     const response = await fetch(url, {
                         method: 'GET',
                         headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
                             'Referer': this.getReferer(url),
                             'Accept': '*/*',
                             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                            'Cache-Control': 'no-cache',
-                            'Connection': 'keep-alive'
+                            'Cache-Control': 'no-cache'
                         },
-                        signal: controller.signal,
                         mode: 'cors'
                     });
-                    
-                    clearTimeout(timeoutId);
                     
                     if (response.ok) {
                         return await response.blob();
                     }
                     return null;
                 } catch (error) {
-                    clearTimeout(timeoutId);
                     return null;
                 }
             }
 
-            async tryProxyDownloadFast(url) {
+            async tryProxyDownload(url) {
                 const proxies = [
-                    // 快速代理列表，优先使用速度快的
                     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
                     `https://cors-anywhere.herokuapp.com/${url}`,
-                    `https://proxy.cors.sh/${url}`,
-                    `https://thingproxy.freeboard.io/fetch/${url}`
+                    `https://proxy.cors.sh/${url}`
                 ];
                 
-                // 并发尝试多个代理，取最快的
-                const promises = proxies.map(async (proxyUrl) => {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6秒超时
-                    
+                for (const proxyUrl of proxies) {
                     try {
                         const response = await fetch(proxyUrl, {
                             headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                            },
-                            signal: controller.signal
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
                         });
-                        
-                        clearTimeout(timeoutId);
                         
                         if (response.ok) {
                             return await response.blob();
                         }
-                        return null;
                     } catch (error) {
-                        clearTimeout(timeoutId);
-                        return null;
+                        continue;
                     }
-                });
-                
-                // 返回第一个成功的结果
-                try {
-                    const results = await Promise.allSettled(promises);
-                    for (const result of results) {
-                        if (result.status === 'fulfilled' && result.value) {
-                            return result.value;
-                        }
-                    }
-                    return null;
-                } catch (error) {
-                    return null;
                 }
+                return null;
             }
 
             createDownloadLink(url, filename) {
