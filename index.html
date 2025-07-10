@@ -190,6 +190,30 @@
         .icon-error { background: #dc3545; }
         .icon-info { background: #17a2b8; }
 
+        .tips {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #856404;
+        }
+
+        .tips p {
+            margin: 0 0 8px 0;
+            font-weight: 600;
+        }
+
+        .tips ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .tips li {
+            margin-bottom: 4px;
+        }
+
         .hidden {
             display: none;
         }
@@ -242,6 +266,14 @@
                 class="url-input" 
                 placeholder="请粘贴视频或图片链接，支持：&#10;• 小红书视频链接&#10;• 小红书图片链接&#10;• 其他直链媒体文件&#10;&#10;多个链接请换行分隔"
             ></textarea>
+            <div class="tips">
+                <p>💡 <strong>使用提示：</strong></p>
+                <ul>
+                    <li>如果在GitHub Pages遇到403错误，请下载HTML文件到本地运行</li>
+                    <li>某些CDN有防盗链保护，可能需要在相同域名下使用</li>
+                    <li>建议使用最新版Chrome或Firefox浏览器</li>
+                </ul>
+            </div>
         </div>
 
         <div class="button-group">
@@ -398,14 +430,23 @@
 
             async downloadFile(url, zip) {
                 try {
-                    const response = await fetch(url);
+                    const filename = this.getFilename(url);
                     
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
+                    // 方法1：尝试直接下载
+                    let blob = await this.tryDirectDownload(url);
+                    
+                    if (!blob) {
+                        // 方法2：使用代理服务
+                        blob = await this.tryProxyDownload(url);
                     }
                     
-                    const blob = await response.blob();
-                    const filename = this.getFilename(url, response.headers.get('content-type'));
+                    if (!blob) {
+                        // 方法3：使用iframe下载
+                        await this.tryIframeDownload(url, filename);
+                        this.stats.success++;
+                        this.log(`✅ ${filename} 已触发下载`, 'success');
+                        return;
+                    }
                     
                     if (this.stats.total === 1) {
                         // 单个文件直接下载
@@ -426,12 +467,109 @@
                 }
             }
 
-            getFilename(url, contentType) {
+            async tryDirectDownload(url) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                            'Referer': 'https://www.xiaohongshu.com/',
+                            'Accept': '*/*',
+                            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                            'Cache-Control': 'no-cache',
+                            'Pragma': 'no-cache'
+                        },
+                        mode: 'cors'
+                    });
+                    
+                    if (response.ok) {
+                        return await response.blob();
+                    }
+                    return null;
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            async tryProxyDownload(url) {
+                try {
+                    // 使用 CORS 代理服务
+                    const proxyUrls = [
+                        `https://cors-anywhere.herokuapp.com/${url}`,
+                        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                        `https://proxy.cors.sh/${url}`
+                    ];
+                    
+                    for (const proxyUrl of proxyUrls) {
+                        try {
+                            const response = await fetch(proxyUrl, {
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                                }
+                            });
+                            
+                            if (response.ok) {
+                                return await response.blob();
+                            }
+                        } catch (e) {
+                            continue;
+                        }
+                    }
+                    return null;
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            async tryIframeDownload(url, filename) {
+                return new Promise((resolve, reject) => {
+                    try {
+                        // 创建隐藏的 iframe
+                        const iframe = document.createElement('iframe');
+                        iframe.style.display = 'none';
+                        iframe.src = url;
+                        
+                        iframe.onload = () => {
+                            setTimeout(() => {
+                                document.body.removeChild(iframe);
+                                resolve();
+                            }, 1000);
+                        };
+                        
+                        iframe.onerror = () => {
+                            // 如果iframe失败，尝试创建下载链接
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = filename;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            
+                            setTimeout(() => {
+                                if (iframe.parentNode) {
+                                    document.body.removeChild(iframe);
+                                }
+                                resolve();
+                            }, 1000);
+                        };
+                        
+                        document.body.appendChild(iframe);
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            }
+
+            getFilename(url, contentType = null) {
                 // 从URL中提取文件名
                 const urlPath = new URL(url).pathname;
                 let filename = urlPath.split('/').pop();
                 
-                // 如果没有扩展名，根据content-type添加
+                // 如果没有扩展名，根据content-type或URL特征添加
                 if (!filename.includes('.')) {
                     if (contentType) {
                         if (contentType.includes('video')) {
@@ -443,9 +581,9 @@
                         }
                     } else {
                         // 根据URL特征判断
-                        if (url.includes('video') || url.includes('.mp4')) {
+                        if (url.includes('video') || url.includes('.mp4') || url.includes('stream')) {
                             filename += '.mp4';
-                        } else if (url.includes('image') || url.includes('.jpg') || url.includes('.png')) {
+                        } else if (url.includes('image') || url.includes('.jpg') || url.includes('.png') || url.includes('imageView')) {
                             filename += '.jpg';
                         } else {
                             filename += '.file';
@@ -459,7 +597,9 @@
                 // 如果文件名为空，生成默认名称
                 if (!filename || filename === '.file') {
                     const timestamp = Date.now();
-                    filename = `文件_${timestamp}.file`;
+                    const isVideo = url.includes('video') || url.includes('.mp4') || url.includes('stream');
+                    const ext = isVideo ? '.mp4' : '.jpg';
+                    filename = `媒体文件_${timestamp}${ext}`;
                 }
                 
                 return filename;
