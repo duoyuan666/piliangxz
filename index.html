@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>批量媒体文件下载工具</title>
+    <title>图片视频链接批量解析</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * {
@@ -53,7 +53,7 @@
 
         .url-input {
             width: 100%;
-            min-height: 120px;
+            min-height: 150px;
             padding: 15px;
             border: 2px solid #e0e0e0;
             border-radius: 12px;
@@ -61,6 +61,7 @@
             resize: vertical;
             transition: all 0.3s ease;
             background: #fafafa;
+            font-family: 'Courier New', monospace;
         }
 
         .url-input:focus {
@@ -118,6 +119,33 @@
 
         .progress-section {
             margin-bottom: 30px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
         }
 
         .progress-bar {
@@ -179,6 +207,12 @@
             border: 1px solid #bee5eb;
         }
 
+        .log-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
         .status-icon {
             width: 16px;
             height: 16px;
@@ -189,30 +223,7 @@
         .icon-success { background: #28a745; }
         .icon-error { background: #dc3545; }
         .icon-info { background: #17a2b8; }
-
-        .tips {
-            margin-top: 15px;
-            padding: 15px;
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 8px;
-            font-size: 13px;
-            color: #856404;
-        }
-
-        .tips p {
-            margin: 0 0 8px 0;
-            font-weight: 600;
-        }
-
-        .tips ul {
-            margin: 0;
-            padding-left: 20px;
-        }
-
-        .tips li {
-            margin-bottom: 4px;
-        }
+        .icon-warning { background: #ffc107; }
 
         .hidden {
             display: none;
@@ -227,61 +238,63 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .stat-card {
-            background: white;
+        .download-links {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
             padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 15px;
         }
 
-        .stat-number {
-            font-size: 24px;
-            font-weight: bold;
-            color: #667eea;
+        .download-link {
+            display: block;
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #495057;
+            font-size: 13px;
+            transition: all 0.2s ease;
         }
 
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
+        .download-link:hover {
+            background: #e9ecef;
+            text-decoration: none;
+        }
+
+        .copy-btn {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            margin-left: 10px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎬 批量媒体下载工具</h1>
+        <h1>📱 图片视频链接批量解析</h1>
         
         <div class="input-section">
             <label for="urlInput">粘贴链接（每行一个）：</label>
             <textarea 
                 id="urlInput" 
                 class="url-input" 
-                placeholder="请粘贴视频或图片链接，支持：&#10;• 小红书视频链接&#10;• 小红书图片链接&#10;• 其他直链媒体文件&#10;&#10;多个链接请换行分隔"
+                placeholder="请粘贴图片或视频链接，支持：&#10;• 小红书视频/图片链接&#10;• 抖音视频链接&#10;• 其他直链媒体文件&#10;&#10;多个链接请换行分隔"
             ></textarea>
-            <div class="tips">
-                <p>💡 <strong>使用提示：</strong></p>
-                <ul>
-                    <li>如果在GitHub Pages遇到403错误，请下载HTML文件到本地运行</li>
-                    <li>某些CDN有防盗链保护，可能需要在相同域名下使用</li>
-                    <li>建议使用最新版Chrome或Firefox浏览器</li>
-                </ul>
-            </div>
         </div>
 
         <div class="button-group">
             <button id="downloadBtn" class="btn btn-primary">
-                📥 开始下载
+                🚀 开始处理
             </button>
             <button id="clearBtn" class="btn btn-secondary">
-                🗑️ 清空日志
+                🗑️ 清空
             </button>
         </div>
 
@@ -312,11 +325,15 @@
 
         <div class="log-section">
             <div id="logContainer"></div>
+            <div id="downloadLinks" class="download-links hidden">
+                <strong>📥 下载链接：</strong>
+                <div id="linkContainer"></div>
+            </div>
         </div>
     </div>
 
     <script>
-        class BatchDownloader {
+        class MediaParser {
             constructor() {
                 this.downloadBtn = document.getElementById('downloadBtn');
                 this.clearBtn = document.getElementById('clearBtn');
@@ -325,21 +342,23 @@
                 this.progressFill = document.getElementById('progressFill');
                 this.progressText = document.getElementById('progressText');
                 this.logContainer = document.getElementById('logContainer');
+                this.downloadLinks = document.getElementById('downloadLinks');
+                this.linkContainer = document.getElementById('linkContainer');
                 
                 this.totalCount = document.getElementById('totalCount');
                 this.successCount = document.getElementById('successCount');
                 this.errorCount = document.getElementById('errorCount');
                 this.currentProgress = document.getElementById('currentProgress');
                 
-                this.isDownloading = false;
+                this.isProcessing = false;
                 this.stats = { total: 0, success: 0, error: 0 };
                 
                 this.initEvents();
             }
 
             initEvents() {
-                this.downloadBtn.addEventListener('click', () => this.startDownload());
-                this.clearBtn.addEventListener('click', () => this.clearLog());
+                this.downloadBtn.addEventListener('click', () => this.startProcess());
+                this.clearBtn.addEventListener('click', () => this.clearAll());
             }
 
             log(message, type = 'info') {
@@ -359,9 +378,11 @@
                 this.logContainer.scrollTop = this.logContainer.scrollHeight;
             }
 
-            clearLog() {
+            clearAll() {
                 this.logContainer.innerHTML = '';
+                this.linkContainer.innerHTML = '';
                 this.progressSection.classList.add('hidden');
+                this.downloadLinks.classList.add('hidden');
                 this.stats = { total: 0, success: 0, error: 0 };
                 this.updateStats();
             }
@@ -380,21 +401,24 @@
                     `已处理 ${this.stats.success + this.stats.error} / ${this.stats.total} 个文件`;
             }
 
-            async startDownload() {
-                if (this.isDownloading) return;
-                
-                const urls = this.urlInput.value.trim().split('\n')
+            getUrls() {
+                return this.urlInput.value.trim().split('\n')
                     .map(url => url.trim())
                     .filter(url => url.length > 0);
+            }
+
+            async startProcess() {
+                if (this.isProcessing) return;
                 
+                const urls = this.getUrls();
                 if (urls.length === 0) {
                     this.log('请输入至少一个链接', 'error');
                     return;
                 }
 
-                this.isDownloading = true;
+                this.isProcessing = true;
                 this.downloadBtn.disabled = true;
-                this.downloadBtn.textContent = '⏳ 下载中...';
+                this.downloadBtn.textContent = '⏳ 处理中...';
                 
                 this.progressSection.classList.remove('hidden');
                 this.stats = { total: urls.length, success: 0, error: 0 };
@@ -403,65 +427,60 @@
                 this.log(`开始处理 ${urls.length} 个链接`, 'info');
                 
                 const zip = new JSZip();
-                const downloadPromises = urls.map(url => this.downloadFile(url, zip));
                 
-                await Promise.all(downloadPromises);
+                for (let i = 0; i < urls.length; i++) {
+                    const url = urls[i];
+                    await this.processUrl(url, zip);
+                }
                 
                 if (this.stats.success > 0) {
                     if (this.stats.success === 1 && urls.length === 1) {
-                        // 单个文件直接下载
-                        this.log('单个文件下载完成', 'success');
+                        this.log('文件处理完成', 'success');
                     } else {
-                        // 多个文件打包下载
                         this.log('正在生成压缩包...', 'info');
                         const content = await zip.generateAsync({ type: 'blob' });
                         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
                         this.saveFile(content, `媒体文件_${timestamp}.zip`);
-                        this.log(`压缩包生成完成，包含 ${this.stats.success} 个文件`, 'success');
+                        this.log(`压缩包已生成，包含 ${this.stats.success} 个文件`, 'success');
                     }
-                } else {
-                    this.log('没有文件下载成功', 'error');
                 }
                 
-                this.isDownloading = false;
+                this.isProcessing = false;
                 this.downloadBtn.disabled = false;
-                this.downloadBtn.textContent = '📥 开始下载';
+                this.downloadBtn.textContent = '🚀 开始处理';
+                
+                this.log(`处理完成！成功: ${this.stats.success}, 失败: ${this.stats.error}`, 'info');
             }
 
-            async downloadFile(url, zip) {
+            async processUrl(url, zip) {
+                const filename = this.getFilename(url);
+                
                 try {
-                    const filename = this.getFilename(url);
-                    
-                    // 方法1：尝试直接下载
+                    // 方法1: 直接下载
                     let blob = await this.tryDirectDownload(url);
                     
                     if (!blob) {
-                        // 方法2：使用代理服务
+                        // 方法2: 使用代理
                         blob = await this.tryProxyDownload(url);
                     }
                     
-                    if (!blob) {
-                        // 方法3：使用iframe下载
-                        await this.tryIframeDownload(url, filename);
+                    if (blob) {
+                        if (this.stats.total === 1) {
+                            this.saveFile(blob, filename);
+                        } else {
+                            zip.file(filename, blob);
+                        }
                         this.stats.success++;
-                        this.log(`✅ ${filename} 已触发下载`, 'success');
-                        return;
-                    }
-                    
-                    if (this.stats.total === 1) {
-                        // 单个文件直接下载
-                        this.saveFile(blob, filename);
+                        this.log(`✅ ${filename} 下载成功`, 'success');
                     } else {
-                        // 多个文件添加到压缩包
-                        zip.file(filename, blob);
+                        // 方法3: 生成下载链接
+                        this.createDownloadLink(url, filename);
+                        this.stats.success++;
+                        this.log(`📋 ${filename} 已生成下载链接`, 'warning');
                     }
-                    
-                    this.stats.success++;
-                    this.log(`✅ ${filename} 下载成功`, 'success');
-                    
                 } catch (error) {
                     this.stats.error++;
-                    this.log(`❌ ${url} 下载失败: ${error.message}`, 'error');
+                    this.log(`❌ ${filename} 处理失败: ${error.message}`, 'error');
                 } finally {
                     this.updateStats();
                 }
@@ -473,11 +492,10 @@
                         method: 'GET',
                         headers: {
                             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                            'Referer': 'https://www.xiaohongshu.com/',
+                            'Referer': this.getReferer(url),
                             'Accept': '*/*',
                             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                            'Cache-Control': 'no-cache',
-                            'Pragma': 'no-cache'
+                            'Cache-Control': 'no-cache'
                         },
                         mode: 'cors'
                     });
@@ -492,95 +510,60 @@
             }
 
             async tryProxyDownload(url) {
-                try {
-                    // 使用 CORS 代理服务
-                    const proxyUrls = [
-                        `https://cors-anywhere.herokuapp.com/${url}`,
-                        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-                        `https://proxy.cors.sh/${url}`
-                    ];
-                    
-                    for (const proxyUrl of proxyUrls) {
-                        try {
-                            const response = await fetch(proxyUrl, {
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest',
-                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                                }
-                            });
-                            
-                            if (response.ok) {
-                                return await response.blob();
-                            }
-                        } catch (e) {
-                            continue;
-                        }
-                    }
-                    return null;
-                } catch (error) {
-                    return null;
-                }
-            }
-
-            async tryIframeDownload(url, filename) {
-                return new Promise((resolve, reject) => {
-                    try {
-                        // 创建隐藏的 iframe
-                        const iframe = document.createElement('iframe');
-                        iframe.style.display = 'none';
-                        iframe.src = url;
-                        
-                        iframe.onload = () => {
-                            setTimeout(() => {
-                                document.body.removeChild(iframe);
-                                resolve();
-                            }, 1000);
-                        };
-                        
-                        iframe.onerror = () => {
-                            // 如果iframe失败，尝试创建下载链接
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = filename;
-                            link.target = '_blank';
-                            link.rel = 'noopener noreferrer';
-                            
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            
-                            setTimeout(() => {
-                                if (iframe.parentNode) {
-                                    document.body.removeChild(iframe);
-                                }
-                                resolve();
-                            }, 1000);
-                        };
-                        
-                        document.body.appendChild(iframe);
-                    } catch (error) {
-                        reject(error);
-                    }
-                });
-            }
-
-            getFilename(url, contentType = null) {
-                // 从URL中提取文件名
-                const urlPath = new URL(url).pathname;
-                let filename = urlPath.split('/').pop();
+                const proxies = [
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                    `https://cors-anywhere.herokuapp.com/${url}`,
+                    `https://proxy.cors.sh/${url}`
+                ];
                 
-                // 如果没有扩展名，根据content-type或URL特征添加
-                if (!filename.includes('.')) {
-                    if (contentType) {
-                        if (contentType.includes('video')) {
-                            filename += '.mp4';
-                        } else if (contentType.includes('image')) {
-                            filename += '.jpg';
-                        } else {
-                            filename += '.file';
+                for (const proxyUrl of proxies) {
+                    try {
+                        const response = await fetch(proxyUrl, {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            return await response.blob();
                         }
-                    } else {
-                        // 根据URL特征判断
+                    } catch (error) {
+                        continue;
+                    }
+                }
+                return null;
+            }
+
+            createDownloadLink(url, filename) {
+                if (this.downloadLinks.classList.contains('hidden')) {
+                    this.downloadLinks.classList.remove('hidden');
+                }
+                
+                const linkDiv = document.createElement('div');
+                linkDiv.innerHTML = `
+                    <a href="${url}" target="_blank" class="download-link" download="${filename}">
+                        📥 ${filename}
+                    </a>
+                    <button class="copy-btn" onclick="navigator.clipboard.writeText('${url}')">复制</button>
+                `;
+                this.linkContainer.appendChild(linkDiv);
+            }
+
+            getReferer(url) {
+                if (url.includes('xhscdn.com') || url.includes('xiaohongshu.com')) {
+                    return 'https://www.xiaohongshu.com/';
+                } else if (url.includes('douyin.com') || url.includes('aweme.com')) {
+                    return 'https://www.douyin.com/';
+                }
+                return '';
+            }
+
+            getFilename(url) {
+                try {
+                    const urlPath = new URL(url).pathname;
+                    let filename = urlPath.split('/').pop();
+                    
+                    if (!filename.includes('.')) {
                         if (url.includes('video') || url.includes('.mp4') || url.includes('stream')) {
                             filename += '.mp4';
                         } else if (url.includes('image') || url.includes('.jpg') || url.includes('.png') || url.includes('imageView')) {
@@ -589,20 +572,20 @@
                             filename += '.file';
                         }
                     }
+                    
+                    filename = filename.replace(/[<>:"/\\|?*]/g, '_');
+                    
+                    if (!filename || filename === '.file') {
+                        const timestamp = Date.now();
+                        const isVideo = url.includes('video') || url.includes('.mp4') || url.includes('stream');
+                        const ext = isVideo ? '.mp4' : '.jpg';
+                        filename = `媒体文件_${timestamp}${ext}`;
+                    }
+                    
+                    return filename;
+                } catch (error) {
+                    return `文件_${Date.now()}.file`;
                 }
-                
-                // 处理可能的特殊字符
-                filename = filename.replace(/[<>:"/\\|?*]/g, '_');
-                
-                // 如果文件名为空，生成默认名称
-                if (!filename || filename === '.file') {
-                    const timestamp = Date.now();
-                    const isVideo = url.includes('video') || url.includes('.mp4') || url.includes('stream');
-                    const ext = isVideo ? '.mp4' : '.jpg';
-                    filename = `媒体文件_${timestamp}${ext}`;
-                }
-                
-                return filename;
             }
 
             saveFile(blob, filename) {
@@ -610,6 +593,7 @@
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = filename;
+                a.style.display = 'none';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -619,7 +603,7 @@
 
         // 初始化应用
         document.addEventListener('DOMContentLoaded', () => {
-            new BatchDownloader();
+            new MediaParser();
         });
     </script>
 </body>
